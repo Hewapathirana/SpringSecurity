@@ -2,6 +2,7 @@ package rc.bootsecurity;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -13,21 +14,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @EnableWebSecurity
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth
+    private UserPrincipalDetailsService userPrincipalDetailsService;
 
-                .inMemoryAuthentication()
-                .withUser("admin").password(passwordEncoder().encode("admin123")).roles("ADMIN")
-                //.authorities("ACCESS_TEST1","ACCESS_TEST2")
-                .and()
-                .withUser("dan").password(passwordEncoder().encode("dan123")).roles("USER")
-                .and()
-                .withUser("manager").password(passwordEncoder().encode("manager123")).roles("MANAGER")
-                //.authorities("ACCESS_TEST1")
-        ;
-
+    public SecurityConfiguration(UserPrincipalDetailsService userPrincipalDetailsService) {
+        this.userPrincipalDetailsService = userPrincipalDetailsService;
     }
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) {
+        auth.authenticationProvider(authenticationProvider());
+    }
+
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
@@ -39,9 +36,22 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .antMatchers("/management/**").hasAnyRole("ADMIN","MANAGER")
                 .antMatchers("/api/public/test1").hasAuthority("ACCESS_TEST1")
                 .antMatchers("/api/public/test2").hasAuthority("ACCESS_TEST2")
+                .antMatchers("api/public/users").hasRole("ADMIN")
                 .and()
                 .httpBasic();
     }
+
+
+
+    @Bean
+    DaoAuthenticationProvider authenticationProvider(){
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+        daoAuthenticationProvider.setUserDetailsService(this.userPrincipalDetailsService);
+
+        return daoAuthenticationProvider;
+    }
+
 
     @Bean
     PasswordEncoder passwordEncoder(){
